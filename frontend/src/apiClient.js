@@ -145,20 +145,30 @@ const getLocalDB = () => {
     localStorage.setItem('finflow_db', JSON.stringify(initialDb));
     return initialDb;
   }
-  const parsed = JSON.parse(db);
-  // Ensure default structures are present
-  if (!parsed.users) parsed.users = [];
-  if (!parsed.profiles) parsed.profiles = {};
-  if (!parsed.transactions) parsed.transactions = [];
-  if (!parsed.budgets) parsed.budgets = [];
-  if (!parsed.savings) parsed.savings = [];
-  if (!parsed.futurePlans) parsed.futurePlans = [];
-  if (!parsed.mockEmails) parsed.mockEmails = [];
+  
+  let parsed;
+  try {
+    parsed = JSON.parse(db);
+  } catch (e) {
+    console.error('Failed to parse local database, resetting to seeds...', e);
+    localStorage.setItem('finflow_db', JSON.stringify(initialDb));
+    return initialDb;
+  }
+
+  // Ensure default structures are present and are of correct types
+  if (!parsed || typeof parsed !== 'object') parsed = {};
+  if (!parsed.users || !Array.isArray(parsed.users)) parsed.users = [];
+  if (!parsed.profiles || typeof parsed.profiles !== 'object') parsed.profiles = {};
+  if (!parsed.transactions || !Array.isArray(parsed.transactions)) parsed.transactions = [];
+  if (!parsed.budgets || !Array.isArray(parsed.budgets)) parsed.budgets = [];
+  if (!parsed.savings || !Array.isArray(parsed.savings)) parsed.savings = [];
+  if (!parsed.futurePlans || !Array.isArray(parsed.futurePlans)) parsed.futurePlans = [];
+  if (!parsed.mockEmails || !Array.isArray(parsed.mockEmails)) parsed.mockEmails = [];
 
   // Merge or update seeded users dynamically so local cached DBs get updated
   let modified = false;
   initialDb.users.forEach(seedUser => {
-    const localUserIdx = parsed.users.findIndex(u => u.username === seedUser.username || (u.email && u.email === seedUser.email));
+    const localUserIdx = parsed.users.findIndex(u => u && (u.username === seedUser.username || (u.email && u.email === seedUser.email)));
     if (localUserIdx === -1) {
       parsed.users.push(seedUser);
       if (initialDb.profiles[seedUser.id]) {
@@ -168,7 +178,7 @@ const getLocalDB = () => {
     } else {
       // If user exists but has outdated verification or password hash, update it
       const localUser = parsed.users[localUserIdx];
-      if (localUser.passwordHash !== seedUser.passwordHash || localUser.isVerified !== seedUser.isVerified) {
+      if (localUser && (localUser.passwordHash !== seedUser.passwordHash || localUser.isVerified !== seedUser.isVerified)) {
         parsed.users[localUserIdx] = { ...localUser, passwordHash: seedUser.passwordHash, isVerified: seedUser.isVerified };
         modified = true;
       }
