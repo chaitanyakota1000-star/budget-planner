@@ -181,6 +181,26 @@
       "userId": "u_1779793686956",
       "category": "Utilities",
       "limit": 2500
+    },
+    {
+      "userId": "u_1779817358870",
+      "category": "Food",
+      "limit": 5000
+    },
+    {
+      "userId": "u_1779817358870",
+      "category": "Rent",
+      "limit": 15000
+    },
+    {
+      "userId": "u_1779817358870",
+      "category": "Entertainment",
+      "limit": 2500
+    },
+    {
+      "userId": "u_1779817358870",
+      "category": "Utilities",
+      "limit": 2500
     }
   ],
   "savings": [],

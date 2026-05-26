@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../apiClient';
+import { supabase, isSupabaseConfigured } from '../supabase';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -23,6 +24,33 @@ export function Auth({ onLoginSuccess }) {
     setSuccess('');
     setLoading(true);
 
+    if (isSupabaseConfigured) {
+      if (!email.trim()) {
+        setError('Please enter your email address');
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim()
+        });
+
+        if (error) {
+          setError(error.message);
+        } else {
+          setNeedsVerify(true);
+          setSuccess('OTP verification code sent to your email!');
+        }
+      } catch (err) {
+        console.error(err);
+        setError('Failed to request OTP from Supabase.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!username.trim() || !password || (!isLogin && !email.trim())) {
       setError('Please fill in all fields');
       setLoading(false);
@@ -45,7 +73,14 @@ export function Auth({ onLoginSuccess }) {
         if (data.needsVerification) {
           setNeedsVerify(true);
           setVerifyUserId(data.id || data.userId);
-          setSuccess('Account created! A 6-digit OTP verification code has been sent to your email.');
+          if (apiClient.getMode() === 'offline') {
+            const db = JSON.parse(localStorage.getItem('finflow_db') || '{}');
+            const createdUser = db.users?.find(u => u.id === (data.id || data.userId));
+            const otpVal = createdUser?.verificationCode || '123456';
+            setSuccess(`Account created! [DEMO MODE OTP: ${otpVal}] Enter this code to verify.`);
+          } else {
+            setSuccess('Account created! A 6-digit OTP verification code has been sent to your email.');
+          }
         } else {
           onLoginSuccess(data.id || data.userId, data.username);
         }
@@ -54,7 +89,14 @@ export function Auth({ onLoginSuccess }) {
           setNeedsVerify(true);
           setVerifyUserId(data.userId);
           setError(data.error || 'Account email is not verified.');
-          setSuccess('A new 6-digit OTP verification code has been sent to your email.');
+          if (apiClient.getMode() === 'offline') {
+            const db = JSON.parse(localStorage.getItem('finflow_db') || '{}');
+            const createdUser = db.users?.find(u => u.id === data.userId);
+            const otpVal = createdUser?.verificationCode || '123456';
+            setSuccess(`[DEMO MODE OTP: ${otpVal}] Enter this code to verify.`);
+          } else {
+            setSuccess('A new 6-digit OTP verification code has been sent to your email.');
+          }
         } else {
           setError(data.error || 'Authentication failed. Please try again.');
         }
@@ -73,7 +115,39 @@ export function Auth({ onLoginSuccess }) {
     setSuccess('');
     setLoading(true);
 
-    if (!otpCode.trim() || otpCode.trim().length !== 6) {
+    if (!otpCode.trim()) {
+      setError('Please enter the OTP verification code');
+      setLoading(false);
+      return;
+    }
+
+    if (isSupabaseConfigured) {
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({
+          email: email.trim(),
+          token: otpCode.trim(),
+          type: 'email'
+        });
+
+        if (error) {
+          setError(error.message || 'Invalid OTP code.');
+        } else {
+          setSuccess('Login successful!');
+          const user = data.user;
+          setTimeout(() => {
+            onLoginSuccess(user.id, user.email.split('@')[0]);
+          }, 1000);
+        }
+      } catch (err) {
+        console.error(err);
+        setError('Failed to verify OTP with Supabase.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (otpCode.trim().length !== 6) {
       setError('Please enter a valid 6-digit OTP verification code');
       setLoading(false);
       return;
@@ -107,6 +181,26 @@ export function Auth({ onLoginSuccess }) {
     setSuccess('');
     setLoading(true);
 
+    if (isSupabaseConfigured) {
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          email: email.trim()
+        });
+
+        if (error) {
+          setError(error.message);
+        } else {
+          setSuccess('A new OTP verification code has been sent.');
+        }
+      } catch (err) {
+        console.error(err);
+        setError('Failed to resend OTP from Supabase.');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     try {
       const response = await apiClient.post(`http://localhost:5000/api/auth/resend`, {
         userId: verifyUserId
@@ -114,7 +208,14 @@ export function Auth({ onLoginSuccess }) {
 
       const data = await response.json();
       if (response.ok) {
-        setSuccess(data.message || 'Verification OTP code resent successfully!');
+        if (apiClient.getMode() === 'offline') {
+          const db = JSON.parse(localStorage.getItem('finflow_db') || '{}');
+          const createdUser = db.users?.find(u => u.id === verifyUserId);
+          const otpVal = createdUser?.verificationCode || '123456';
+          setSuccess(`[DEMO MODE RESENT OTP: ${otpVal}] Enter this code to verify.`);
+        } else {
+          setSuccess(data.message || 'Verification OTP code resent successfully!');
+        }
       } else {
         setError(data.error || 'Failed to resend code. Please try again.');
       }
@@ -134,23 +235,30 @@ export function Auth({ onLoginSuccess }) {
           {/* Connection status badge */}
           <div 
             onClick={() => {
+              if (isSupabaseConfigured) return;
               const newMode = apiClient.getMode() === 'backend' ? 'offline' : 'backend';
               apiClient.setMode(newMode);
               window.location.reload();
             }}
-            title="Click to toggle connection mode (Backend vs Demo Mode)"
+            title={isSupabaseConfigured ? "Supabase Online Auth Enabled" : "Click to toggle connection mode (Backend vs Demo Mode)"}
             style={{
               position: 'absolute',
               top: '12px',
               right: '12px',
-              background: apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)',
-              color: apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d',
-              border: apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)',
+              background: isSupabaseConfigured 
+                ? 'rgba(16, 185, 129, 0.12)'
+                : (apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)'),
+              color: isSupabaseConfigured 
+                ? '#86efac'
+                : (apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d'),
+              border: isSupabaseConfigured
+                ? '1px solid rgba(16, 185, 129, 0.2)'
+                : (apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)'),
               fontSize: '0.7rem',
               padding: '4px 10px',
               borderRadius: '20px',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: isSupabaseConfigured ? 'default' : 'pointer',
               userSelect: 'none',
               display: 'flex',
               alignItems: 'center',
@@ -158,8 +266,8 @@ export function Auth({ onLoginSuccess }) {
               transition: 'background 0.2s'
             }}
           >
-            <span style={{ fontSize: '0.55rem' }}>{apiClient.getMode() === 'backend' ? '🟢' : '⚡'}</span>
-            {apiClient.getMode() === 'backend' ? 'CONNECTED' : 'OFFLINE MODE'}
+            <span style={{ fontSize: '0.55rem' }}>{isSupabaseConfigured || apiClient.getMode() === 'backend' ? '🟢' : '⚡'}</span>
+            {isSupabaseConfigured ? 'SUPABASE ONLINE' : (apiClient.getMode() === 'backend' ? 'CONNECTED' : 'OFFLINE MODE')}
           </div>
 
           {/* Branding header */}
@@ -169,7 +277,9 @@ export function Auth({ onLoginSuccess }) {
             </div>
             <h2 style={{ fontSize: '1.75rem', fontWeight: 800, background: 'linear-gradient(135deg, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>Verify Your Email</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              We sent a 6-digit OTP verification code to your registered email address.
+              {isSupabaseConfigured 
+                ? 'We sent a verification code to your email address.' 
+                : 'We sent a 6-digit OTP verification code to your registered email address.'}
             </p>
           </div>
 
@@ -187,17 +297,17 @@ export function Auth({ onLoginSuccess }) {
 
           <form onSubmit={handleVerifySubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
             <div className="form-group" style={{ margin: 0 }}>
-              <label className="form-label" htmlFor="verify-otp">6-Digit OTP Code</label>
+              <label className="form-label" htmlFor="verify-otp">Verification OTP Code</label>
               <input 
                 type="text" 
                 id="verify-otp" 
                 className="form-control" 
                 placeholder="e.g. 123456" 
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\s/g, '').slice(0, 8))}
                 disabled={loading}
                 required 
-                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '8px', fontWeight: 'bold' }}
+                style={{ textAlign: 'center', fontSize: '1.5rem', letterSpacing: '6px', fontWeight: 'bold' }}
               />
             </div>
 
@@ -241,23 +351,30 @@ export function Auth({ onLoginSuccess }) {
         {/* Connection status badge */}
         <div 
           onClick={() => {
+            if (isSupabaseConfigured) return;
             const newMode = apiClient.getMode() === 'backend' ? 'offline' : 'backend';
             apiClient.setMode(newMode);
             window.location.reload();
           }}
-          title="Click to toggle connection mode (Backend vs Demo Mode)"
+          title={isSupabaseConfigured ? "Supabase Online Auth Enabled" : "Click to toggle connection mode (Backend vs Demo Mode)"}
           style={{
             position: 'absolute',
             top: '12px',
             right: '12px',
-            background: apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)',
-            color: apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d',
-            border: apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)',
+            background: isSupabaseConfigured 
+              ? 'rgba(16, 185, 129, 0.12)'
+              : (apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)'),
+            color: isSupabaseConfigured 
+              ? '#86efac'
+              : (apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d'),
+            border: isSupabaseConfigured
+              ? '1px solid rgba(16, 185, 129, 0.2)'
+              : (apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)'),
             fontSize: '0.7rem',
             padding: '4px 10px',
             borderRadius: '20px',
             fontWeight: 600,
-            cursor: 'pointer',
+            cursor: isSupabaseConfigured ? 'default' : 'pointer',
             userSelect: 'none',
             display: 'flex',
             alignItems: 'center',
@@ -265,8 +382,8 @@ export function Auth({ onLoginSuccess }) {
             transition: 'background 0.2s'
           }}
         >
-          <span style={{ fontSize: '0.55rem' }}>{apiClient.getMode() === 'backend' ? '🟢' : '⚡'}</span>
-          {apiClient.getMode() === 'backend' ? 'CONNECTED' : 'OFFLINE MODE'}
+          <span style={{ fontSize: '0.55rem' }}>{isSupabaseConfigured || apiClient.getMode() === 'backend' ? '🟢' : '⚡'}</span>
+          {isSupabaseConfigured ? 'SUPABASE ONLINE' : (apiClient.getMode() === 'backend' ? 'CONNECTED' : 'OFFLINE MODE')}
         </div>
 
         {/* Branding header */}
@@ -276,7 +393,9 @@ export function Auth({ onLoginSuccess }) {
           </div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, background: 'linear-gradient(135deg, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>FinFlow</h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            {isLogin ? 'Log in to manage your budgets' : 'Create an account to start saving'}
+            {isSupabaseConfigured 
+              ? 'Enter your email to receive a login OTP'
+              : (isLogin ? 'Log in to manage your budgets' : 'Create an account to start saving')}
           </p>
         </div>
 
@@ -293,21 +412,7 @@ export function Auth({ onLoginSuccess }) {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" htmlFor="auth-username">Username</label>
-            <input 
-              type="text" 
-              id="auth-username" 
-              className="form-control" 
-              placeholder="Enter username" 
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              disabled={loading}
-              required 
-            />
-          </div>
-
-          {!isLogin && (
+          {isSupabaseConfigured ? (
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" htmlFor="auth-email">Email Address</label>
               <input 
@@ -321,21 +426,53 @@ export function Auth({ onLoginSuccess }) {
                 required 
               />
             </div>
-          )}
+          ) : (
+            <>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="auth-username">Username</label>
+                <input 
+                  type="text" 
+                  id="auth-username" 
+                  className="form-control" 
+                  placeholder="Enter username" 
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  disabled={loading}
+                  required 
+                />
+              </div>
 
-          <div className="form-group" style={{ margin: 0 }}>
-            <label className="form-label" htmlFor="auth-password">Password</label>
-            <input 
-              type="password" 
-              id="auth-password" 
-              className="form-control" 
-              placeholder="••••••••" 
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-              required 
-            />
-          </div>
+              {!isLogin && (
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" htmlFor="auth-email">Email Address</label>
+                  <input 
+                    type="email" 
+                    id="auth-email" 
+                    className="form-control" 
+                    placeholder="chait@example.com" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    disabled={loading}
+                    required 
+                  />
+                </div>
+              )}
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" htmlFor="auth-password">Password</label>
+                <input 
+                  type="password" 
+                  id="auth-password" 
+                  className="form-control" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={loading}
+                  required 
+                />
+              </div>
+            </>
+          )}
 
           <button 
             type="submit" 
@@ -343,21 +480,23 @@ export function Auth({ onLoginSuccess }) {
             style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem' }}
             disabled={loading}
           >
-            {loading ? 'Please wait...' : (isLogin ? 'Log In' : 'Sign Up')}
+            {loading ? 'Please wait...' : (isSupabaseConfigured ? 'Send OTP' : (isLogin ? 'Log In' : 'Sign Up'))}
           </button>
         </form>
 
-        <div style={{ marginTop: '2.0rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          {isLogin ? "Don't have an account? " : "Already have an account? "}
-          <button 
-            type="button" 
-            style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
-            onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
-            disabled={loading}
-          >
-            {isLogin ? 'Sign Up' : 'Log In'}
-          </button>
-        </div>
+        {!isSupabaseConfigured && (
+          <div style={{ marginTop: '2.0rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            {isLogin ? "Don't have an account? " : "Already have an account? "}
+            <button 
+              type="button" 
+              style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
+              onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
+              disabled={loading}
+            >
+              {isLogin ? 'Sign Up' : 'Log In'}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
