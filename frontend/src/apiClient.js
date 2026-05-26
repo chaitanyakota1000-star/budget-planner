@@ -155,16 +155,23 @@ const getLocalDB = () => {
   if (!parsed.futurePlans) parsed.futurePlans = [];
   if (!parsed.mockEmails) parsed.mockEmails = [];
 
-  // Merge missing seeded users dynamically so local cached DBs get updated
+  // Merge or update seeded users dynamically so local cached DBs get updated
   let modified = false;
   initialDb.users.forEach(seedUser => {
-    const exists = parsed.users.some(u => u.username === seedUser.username || (u.email && u.email === seedUser.email));
-    if (!exists) {
+    const localUserIdx = parsed.users.findIndex(u => u.username === seedUser.username || (u.email && u.email === seedUser.email));
+    if (localUserIdx === -1) {
       parsed.users.push(seedUser);
       if (initialDb.profiles[seedUser.id]) {
         parsed.profiles[seedUser.id] = initialDb.profiles[seedUser.id];
       }
       modified = true;
+    } else {
+      // If user exists but has outdated verification or password hash, update it
+      const localUser = parsed.users[localUserIdx];
+      if (localUser.passwordHash !== seedUser.passwordHash || localUser.isVerified !== seedUser.isVerified) {
+        parsed.users[localUserIdx] = { ...localUser, passwordHash: seedUser.passwordHash, isVerified: seedUser.isVerified };
+        modified = true;
+      }
     }
   });
 
