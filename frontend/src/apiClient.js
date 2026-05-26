@@ -834,63 +834,106 @@ class ApiClient {
       return makeResponse({ message: 'User deleted completely' });
     }
 
-    // 14. SUMMARY ENDPOINT (Complex math replication)
+    // 14. SUMMARY ENDPOINT (Complex math replication matching backend schema)
     if (pathname === '/api/summary' && method === 'GET') {
       const userProfile = db.profiles[userId] || { initialized: false, currentBalance: 0, monthlyIncome: 0, monthlyExpenses: 0, targetSavings: 0 };
       const userTxs = db.transactions.filter(t => t.userId === userId);
-      const userBudgets = db.budgets.filter(b => b.userId === userId);
+      const userSavings = (db.savings || []).filter(s => s.userId === userId);
 
       // Compute total income & expenses in active ledger
       let totalIncome = 0;
-      let totalExpense = 0;
+      let totalExpenses = 0;
       userTxs.forEach(t => {
         if (t.type === 'income') totalIncome += t.amount;
-        else totalExpense += t.amount;
+        else totalExpenses += t.amount;
       });
 
-      const netBalance = totalIncome - totalExpense;
+      const netBalance = totalIncome - totalExpenses;
 
       // Group active month spending by category
-      const currentMonth = new Date().toISOString().substring(0, 7); // "YYYY-MM"
+      const now = new Date();
+      const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const currentMonthTransactions = userTxs.filter(t => t.date && t.date.startsWith(currentMonthStr));
+
+      let monthlyIncome = 0;
+      let monthlyExpenses = 0;
+      currentMonthTransactions.forEach(t => {
+        if (t.type === 'income') {
+          monthlyIncome += t.amount;
+        } else {
+          monthlyExpenses += t.amount;
+        }
+      });
+
       const categorySpent = {};
-      
-      userTxs.forEach(t => {
-        if (t.type === 'expense' && t.date && t.date.substring(0, 7) === currentMonth) {
+      currentMonthTransactions.forEach(t => {
+        if (t.type === 'expense') {
           categorySpent[t.category] = (categorySpent[t.category] || 0) + t.amount;
         }
       });
 
-      // Map budgets with spent and remaining values
-      const enrichedBudgets = userBudgets.map(b => {
-        const spent = categorySpent[b.category] || 0;
-        return {
-          category: b.category,
-          limit: b.limit,
-          spent,
-          remaining: b.limit - spent
-        };
+      // Trends (6 months)
+      const trends = [];
+      for (let i = 5; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const monthLabel = d.toLocaleString('default', { month: 'short', year: '2-digit' });
+        const prefix = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+
+        let inc = 0;
+        let exp = 0;
+        userTxs.forEach(t => {
+          if (t.date && t.date.startsWith(prefix)) {
+            if (t.type === 'income') {
+              inc += t.amount;
+            } else {
+              exp += t.amount;
+            }
+          }
+        });
+
+        trends.push({
+          month: monthLabel,
+          income: inc,
+          expense: exp
+        });
+      }
+
+      // Savings progress summary
+      let totalSavingsTarget = 0;
+      let totalSavingsCurrent = 0;
+      userSavings.forEach(s => {
+        totalSavingsTarget += (s.targetAmount || s.target || 0);
+        totalSavingsCurrent += (s.currentSavings || s.current || 0);
       });
 
-      // Compute savings rate
-      const activeMonthlyExpenses = enrichedBudgets.reduce((sum, b) => sum + b.spent, 0);
-      const incomeDenominator = userProfile.monthlyIncome || totalIncome || 1;
-      const savingsVal = Math.max(0, incomeDenominator - activeMonthlyExpenses);
-      const savingsRate = Math.round((savingsVal / incomeDenominator) * 100);
+      const baselineIncome = monthlyIncome > 0 ? monthlyIncome : (userProfile.monthlyIncome || 0);
+      const activeSavingsRate = baselineIncome > 0 ? Math.round(((baselineIncome - monthlyExpenses) / baselineIncome) * 100) : 0;
 
       // Update in-memory profile monthly expenses
-      userProfile.monthlyExpenses = activeMonthlyExpenses;
+      userProfile.monthlyExpenses = monthlyExpenses;
       db.profiles[userId] = userProfile;
+      writeLocalDB(db);
 
       const summaryResponse = {
         profile: userProfile,
         totals: {
           totalIncome,
-          totalExpense,
+          totalExpenses,
           netBalance,
-          savingsRate,
-          activeBudgetsCount: userBudgets.length
+          savingsRate: activeSavingsRate
         },
-        budgets: enrichedBudgets
+        monthly: {
+          income: monthlyIncome,
+          expenses: monthlyExpenses,
+          balance: monthlyIncome - monthlyExpenses,
+          categories: categorySpent
+        },
+        trends,
+        savings: {
+          target: totalSavingsTarget,
+          current: totalSavingsCurrent,
+          percentage: totalSavingsTarget > 0 ? (totalSavingsCurrent / totalSavingsTarget) * 100 : 0
+        }
       };
 
       return makeResponse(summaryResponse);
