@@ -4,55 +4,49 @@ function sha256(ascii) {
     return (value >>> amount) | (value << (32 - amount));
   }
   
-  var mathPow = Math.pow;
-  var maxWord = mathPow(2, 32);
-  var lengthProperty = 'length';
-  var i, j; // Used as a temporary index.
-
+  var maxWord = Math.pow(2, 32);
+  var i, j;
   var result = '';
-
   var words = [];
-  var asciiLength = ascii[lengthProperty];
+  var asciiLength = ascii.length;
   
-  var hash = sha256.h = sha256.h || [];
-  var k = sha256.k = sha256.k || [];
-  var primeCounter = k[lengthProperty];
-
+  var hash = [];
+  var k = [];
+  
+  // Initialize constants
+  var primeCounter = 0;
   var isPrime = {};
   for (var candidate = 2; primeCounter < 64; candidate++) {
     if (!isPrime[candidate]) {
-      for (i = 0; i < 300; i += candidate) {
+      for (i = 0; i < 313; i += candidate) {
         isPrime[i] = 1;
       }
-      hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
-      k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+      hash[primeCounter] = (Math.pow(candidate, .5) * maxWord) | 0;
+      k[primeCounter++] = (Math.pow(candidate, 1 / 3) * maxWord) | 0;
     }
   }
   
-  ascii += '\x80'; // Append '1' bit and78 zero bits
-  while (ascii[lengthProperty] % 64 - 56) ascii += '\x00'; // Key padding
+  ascii += '\x80';
+  while (ascii.length % 64 - 56) ascii += '\x00';
   
-  for (i = 0; i < ascii[lengthProperty]; i++) {
+  for (i = 0; i < ascii.length; i++) {
     var charCode = ascii.charCodeAt(i);
     if (charCode >> 8) return; // Only support ASCII
     words[i >> 2] |= charCode << (24 - 8 * (i % 4));
   }
-  words[words[lengthProperty]] = ((asciiLength * 8) / maxWord) | 0;
-  words[words[lengthProperty]] = (asciiLength * 8) | 0;
+  words[words.length] = ((asciiLength * 8) / maxWord) | 0;
+  words[words.length] = (asciiLength * 8) | 0;
   
-  // process each chunk
-  for (j = 0; j < words[lengthProperty]; ) {
-    var w = words.slice(j, j += 16); // The next 16 words
+  for (j = 0; j < words.length; ) {
+    var w = words.slice(j, j += 16);
     var oldHash = hash.slice(0);
     
     hash = hash.slice(0, 8);
     
     for (i = 0; i < 64; i++) {
       var w15 = w[i - 15], w2 = w[i - 2];
-
       var a = hash[0], e = hash[4], temp1, temp2;
       
-      // Expand chunk to 64 words
       var w_i = w[i] = (i < 16) ? w[i] : (
         w[i - 16] +
         (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3)) +
@@ -61,15 +55,15 @@ function sha256(ascii) {
       ) | 0;
       
       temp1 = (hash[7] +
-        (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) + // S1
-        ((e & hash[5]) ^ (~e & hash[6])) + // ch
+        (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25)) +
+        ((e & hash[5]) ^ (~e & hash[6])) +
         k[i] + w_i) | 0;
         
-      temp2 = ((rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) + // S0
-        ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]))) | 0; // maj
+      temp2 = ((rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22)) +
+        ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]))) | 0;
       
-      hash = [(temp1 + temp2) | 0].concat(hash); // new a
-      hash[4] = (hash[4] + temp1) | 0; // new e
+      hash = [(temp1 + temp2) | 0].concat(hash);
+      hash[4] = (hash[4] + temp1) | 0;
     }
     
     for (i = 0; i < 8; i++) {
@@ -79,7 +73,7 @@ function sha256(ascii) {
   
   for (i = 0; i < 8; i++) {
     var byteString = '00000000' + (hash[i] >>> 0).toString(16);
-    result += byteString.substr(byteString[lengthProperty] - 8);
+    result += byteString.substr(byteString.length - 8);
   }
   return result;
 }
@@ -108,7 +102,7 @@ const initialDb = {
     {
       id: "u_chaitanya",
       username: "chaitanya",
-      passwordHash: "b285e393a516e7c0cdf900b1f1a79c270d4733cfc6d93285ff41f2a80445fef4", // Chaitanya@1234
+      passwordHash: "5ee3099274db0ec97b49344793f5beb6823075e88d866372cdbb5ee7214bec69", // Chaitanya@1234
       email: "chaitanyakota1000@gmail.com",
       isVerified: true,
       admin: false

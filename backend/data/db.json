@@ -20,7 +20,7 @@
       "id": "u_1779793686956",
       "username": "chaitanya",
       "email": "chaitanyakota1000@gmail.com",
-      "passwordHash": "b285e393a516e7c0cdf900b1f1a79c270d4733cfc6d93285ff41f2a80445fef4",
+      "passwordHash": "5ee3099274db0ec97b49344793f5beb6823075e88d866372cdbb5ee7214bec69",
       "isVerified": true,
       "verificationCode": "",
       "admin": false
@@ -61,9 +61,9 @@
     },
     "u_1779793686956": {
       "initialized": true,
-      "currentBalance": 12000,
-      "monthlyIncome": 940000,
-      "monthlyExpenses": 75000,
+      "currentBalance": 20000,
+      "monthlyIncome": 20000,
+      "monthlyExpenses": 25500,
       "targetSavings": 10000
     },
     "u_1779794642442": {
@@ -92,30 +92,12 @@
       "date": "2026-05-26"
     },
     {
-      "id": "t_init_1779795729038",
+      "id": "t_init_1779808968769",
       "userId": "u_1779793686956",
       "description": "Initial Balance",
-      "amount": 82000,
+      "amount": 20000,
       "category": "Other",
       "type": "income",
-      "date": "2026-05-26"
-    },
-    {
-      "id": "t_init_spent_Food_1779795729038_0",
-      "userId": "u_1779793686956",
-      "description": "Starting Spend: Food",
-      "amount": 10000,
-      "category": "Food",
-      "type": "expense",
-      "date": "2026-05-26"
-    },
-    {
-      "id": "t_init_spent_loan_1779795729038_4",
-      "userId": "u_1779793686956",
-      "description": "Starting Spend: loan",
-      "amount": 60000,
-      "category": "loan",
-      "type": "expense",
       "date": "2026-05-26"
     }
   ],
@@ -183,27 +165,22 @@
     {
       "userId": "u_1779793686956",
       "category": "Food",
-      "limit": 15000
+      "limit": 5000
     },
     {
       "userId": "u_1779793686956",
       "category": "Rent",
-      "limit": 0
+      "limit": 15000
     },
     {
       "userId": "u_1779793686956",
       "category": "Entertainment",
-      "limit": 0
+      "limit": 3000
     },
     {
       "userId": "u_1779793686956",
       "category": "Utilities",
-      "limit": 0
-    },
-    {
-      "userId": "u_1779793686956",
-      "category": "loan",
-      "limit": 60000
+      "limit": 2500
     }
   ],
   "savings": [],
