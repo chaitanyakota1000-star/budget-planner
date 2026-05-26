@@ -185,6 +185,14 @@ const getLocalDB = () => {
     }
   });
 
+  // Force all users to be verified in Demo / Offline mode to prevent getting stuck
+  parsed.users.forEach(u => {
+    if (u && !u.isVerified) {
+      u.isVerified = true;
+      modified = true;
+    }
+  });
+
   if (modified) {
     localStorage.setItem('finflow_db', JSON.stringify(parsed));
   }
@@ -343,17 +351,15 @@ class ApiClient {
       }
 
       const newUserId = `u_${Date.now()}`;
-      const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
-      const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
 
       const newUser = {
         id: newUserId,
         username: username.trim(),
         email: normalizedEmail,
         passwordHash: sha256(password),
-        isVerified: false,
-        verificationCode: verificationOtp,
-        otpExpiry,
+        isVerified: true, // Auto-verify in Demo / Offline mode
+        verificationCode: null,
+        otpExpiry: null,
         admin: false
       };
 
@@ -378,21 +384,12 @@ class ApiClient {
         });
       });
 
-      // Send simulated verification email
-      db.mockEmails.unshift({
-        id: `mail_${Date.now()}`,
-        to: newUser.email,
-        subject: 'Verify your FinFlow Account - OTP Code (Simulated)',
-        body: `Hi ${newUser.username},\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
-        date: new Date().toISOString()
-      });
-
       writeLocalDB(db);
       return makeResponse({
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
-        needsVerification: true,
+        needsVerification: false, // Bypass verification step
         admin: false
       }, 201);
     }
@@ -476,24 +473,6 @@ class ApiClient {
 
       if (user.passwordHash !== sha256(password)) {
         return makeResponse({ error: 'Invalid username or password' }, 401);
-      }
-
-      if (!user.isVerified) {
-        const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
-        const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
-        user.verificationCode = verificationOtp;
-        user.otpExpiry = otpExpiry;
-
-        db.mockEmails.unshift({
-          id: `mail_${Date.now()}`,
-          to: user.email,
-          subject: 'Verify your FinFlow Account (Re-sent)',
-          body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
-          date: new Date().toISOString()
-        });
-
-        writeLocalDB(db);
-        return makeResponse({ error: 'Account email is not verified.', needsVerification: true, userId: user.id }, 403);
       }
 
       return makeResponse({
