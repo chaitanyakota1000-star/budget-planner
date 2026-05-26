@@ -57,7 +57,9 @@ export function DevConsole({ authUserId }) {
   };
 
   const handleResetUser = async (userId, username) => {
-    const confirmReset = window.confirm(`🚨 Are you sure you want to completely WIPE all financial data and reset onboarding for user "${username}"?`);
+    const confirmReset = window.customConfirm 
+      ? await window.customConfirm(`🚨 Are you sure you want to completely WIPE all financial data and reset onboarding for user "${username}"?`)
+      : window.confirm(`🚨 Are you sure you want to completely WIPE all financial data and reset onboarding for user "${username}"?`);
     if (!confirmReset) return;
 
     try {
@@ -76,7 +78,9 @@ export function DevConsole({ authUserId }) {
   };
 
   const handleDeleteUser = async (userId, username) => {
-    const confirmDelete = window.confirm(`🔥 DANGER: Are you sure you want to PERMANENTLY DELETE the account and all data for user "${username}"? This cannot be undone.`);
+    const confirmDelete = window.customConfirm 
+      ? await window.customConfirm(`🔥 DANGER: Are you sure you want to PERMANENTLY DELETE the account and all data for user "${username}"? This cannot be undone.`)
+      : window.confirm(`🔥 DANGER: Are you sure you want to PERMANENTLY DELETE the account and all data for user "${username}"? This cannot be undone.`);
     if (!confirmDelete) return;
 
     try {

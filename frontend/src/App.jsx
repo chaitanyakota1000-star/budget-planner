@@ -11,6 +11,42 @@ const API_BASE = 'http://localhost:5000/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Custom glassmorphic Notification & Confirmation Dialog states
+  const [toast, setToast] = useState(null); // { message, type }
+  const [confirmData, setConfirmData] = useState(null); // { message, resolve }
+
+  useEffect(() => {
+    // Smart window.alert override to display modern toasts
+    window.alert = (message) => {
+      let type = 'info';
+      const msgLower = message.toLowerCase();
+      if (msgLower.includes('success') || msgLower.includes('verified') || msgLower.includes('optimized') || msgLower.includes('wiped') || msgLower.includes('deleted')) {
+        type = 'success';
+      } else if (msgLower.includes('fail') || msgLower.includes('error') || msgLower.includes('exceeded') || msgLower.includes('unauthorized') || msgLower.includes('forbidden') || msgLower.includes('already exists') || msgLower.includes('danger') || msgLower.includes('invalid')) {
+        type = 'error';
+      } else if (msgLower.includes('watch out') || msgLower.includes('attention') || msgLower.includes('warning') || msgLower.includes('low') || msgLower.includes('re-verify')) {
+        type = 'warning';
+      }
+      setToast({ message, type });
+    };
+
+    window.customConfirm = (message) => {
+      return new Promise((resolve) => {
+        setConfirmData({ message, resolve });
+      });
+    };
+  }, []);
+
+  // Auto-dismiss toast
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => {
+        setToast(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
   
   // Auth State
   const [authUserId, setAuthUserId] = useState(localStorage.getItem('userId') || null);
@@ -117,9 +153,9 @@ export default function App() {
   };
 
   const handleResetProfile = async () => {
-    const doubleConfirm = window.confirm(
-      '🚨 DANGER: Are you sure you want to completely WIPE all your financial records (transactions, budgets, savings goals, future plans) and restart onboarding? This action CANNOT be undone.'
-    );
+    const doubleConfirm = window.customConfirm 
+      ? await window.customConfirm('🚨 DANGER: Are you sure you want to completely WIPE all your financial records (transactions, budgets, savings goals, future plans) and restart onboarding? This action CANNOT be undone.')
+      : window.confirm('🚨 DANGER: Are you sure you want to completely WIPE all your financial records (transactions, budgets, savings goals, future plans) and restart onboarding? This action CANNOT be undone.');
     if (!doubleConfirm) return;
 
     try {
@@ -160,7 +196,10 @@ export default function App() {
   };
 
   const handleDeleteTransaction = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this transaction?')) return;
+    const doubleConfirm = window.customConfirm 
+      ? await window.customConfirm('Are you sure you want to delete this transaction?')
+      : window.confirm('Are you sure you want to delete this transaction?');
+    if (!doubleConfirm) return;
     try {
       const response = await apiClient.delete(`${API_BASE}/transactions/${id}`, getHeaders());
       if (response.ok) {
@@ -225,7 +264,10 @@ export default function App() {
   };
 
   const handleDeleteSavings = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this savings goal?')) return;
+    const doubleConfirm = window.customConfirm 
+      ? await window.customConfirm('Are you sure you want to delete this savings goal?')
+      : window.confirm('Are you sure you want to delete this savings goal?');
+    if (!doubleConfirm) return;
     try {
       const response = await apiClient.delete(`${API_BASE}/savings/${id}`, getHeaders());
       if (response.ok) {
@@ -738,6 +780,151 @@ export default function App() {
         onSave={handleSaveProfile}
         profile={profile}
       />
+
+      {/* --- CUSTOM GLASSMORPHIC TOAST SYSTEM --- */}
+      {toast && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          zIndex: 10000,
+          background: toast.type === 'success' ? 'rgba(16, 185, 129, 0.16)' : 
+                      toast.type === 'error' ? 'rgba(244, 63, 94, 0.16)' : 
+                      toast.type === 'warning' ? 'rgba(245, 158, 11, 0.16)' : 'rgba(99, 102, 241, 0.16)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          border: `1px solid ${
+            toast.type === 'success' ? 'rgba(16, 185, 129, 0.3)' : 
+            toast.type === 'error' ? 'rgba(244, 63, 94, 0.3)' : 
+            toast.type === 'warning' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(99, 102, 241, 0.3)'
+          }`,
+          borderLeft: `5px solid ${
+            toast.type === 'success' ? 'var(--color-income)' : 
+            toast.type === 'error' ? 'var(--color-expense)' : 
+            toast.type === 'warning' ? 'var(--color-warning)' : 'var(--color-primary)'
+          }`,
+          padding: '1.1rem 1.5rem',
+          borderRadius: '16px',
+          boxShadow: '0 12px 40px rgba(0, 0, 0, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.85rem',
+          color: '#fff',
+          maxWidth: '380px',
+          animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          fontSize: '0.9rem',
+          fontFamily: 'var(--font-main)'
+        }}>
+          <span style={{ fontSize: '1.25rem', display: 'flex', alignItems: 'center' }}>
+            {toast.type === 'success' && '✅'}
+            {toast.type === 'error' && '⚠️'}
+            {toast.type === 'warning' && '🔔'}
+            {toast.type === 'info' && 'ℹ️'}
+          </span>
+          <div style={{ flex: 1, fontWeight: '500', lineHeight: '1.4' }}>{toast.message}</div>
+          <button 
+            onClick={() => setToast(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.5)',
+              cursor: 'pointer',
+              fontSize: '1.25rem',
+              marginLeft: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              lineHeight: '1',
+              padding: '0 4px',
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={(e) => e.target.style.color = '#fff'}
+            onMouseLeave={(e) => e.target.style.color = 'rgba(255, 255, 255, 0.5)'}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* --- CUSTOM CONFIRMATION OVERLAY MODAL --- */}
+      {confirmData && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          background: 'rgba(11, 15, 25, 0.7)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          padding: '1rem',
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div className="glass-panel" style={{
+            width: '100%',
+            maxWidth: '420px',
+            padding: '2.25rem',
+            borderRadius: '24px',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 25px 60px rgba(0, 0, 0, 0.55)',
+            animation: 'scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+            textAlign: 'center',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.5rem'
+          }}>
+            <div style={{
+              width: '58px',
+              height: '58px',
+              borderRadius: '16px',
+              background: 'rgba(99, 102, 241, 0.1)',
+              border: '1px solid rgba(99, 102, 241, 0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto',
+              fontSize: '1.75rem',
+              boxShadow: '0 0 15px rgba(99, 102, 241, 0.1)'
+            }}>
+              ❓
+            </div>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', letterSpacing: '-0.3px' }}>Confirm Action</h3>
+              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+                {confirmData.message}
+              </p>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+              <button 
+                className="btn btn-secondary"
+                style={{ flex: 1, margin: 0, padding: '0.75rem 1rem' }}
+                onClick={() => {
+                  confirmData.resolve(false);
+                  setConfirmData(null);
+                }}
+              >
+                Cancel
+              </button>
+              <button 
+                className="btn btn-primary"
+                style={{ flex: 1, margin: 0, padding: '0.75rem 1rem', background: 'linear-gradient(135deg, var(--color-primary), var(--color-secondary))' }}
+                onClick={() => {
+                  confirmData.resolve(true);
+                  setConfirmData(null);
+                }}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
