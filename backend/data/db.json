@@ -15,15 +15,24 @@
       "email": "admin@finflow.com",
       "isVerified": true,
       "admin": true
+    },
+    {
+      "id": "u_1779793686956",
+      "username": "chaitanya",
+      "email": "chaitanyakota1000@gmail.com",
+      "passwordHash": "b285e393a516e7c0cdf900b1f1a79c270d4733cfc6d93285ff41f2a80445fef4",
+      "isVerified": false,
+      "verificationCode": "676711",
+      "admin": false
     }
   ],
   "profiles": {
     "u_chait": {
-      "initialized": false,
-      "currentBalance": 0,
-      "monthlyIncome": 0,
-      "monthlyExpenses": 0,
-      "targetSavings": 0
+      "initialized": true,
+      "currentBalance": 27000,
+      "monthlyIncome": 50000,
+      "monthlyExpenses": 25500,
+      "targetSavings": 30000
     },
     "u_admin": {
       "initialized": true,
@@ -31,10 +40,68 @@
       "monthlyIncome": 100000,
       "monthlyExpenses": 0,
       "targetSavings": 20000
+    },
+    "u_1779793686956": {
+      "initialized": false,
+      "currentBalance": 0,
+      "monthlyIncome": 0,
+      "monthlyExpenses": 0,
+      "targetSavings": 0
     }
   },
-  "transactions": [],
-  "budgets": [],
+  "transactions": [
+    {
+      "id": "t_init_1779793584139",
+      "userId": "u_chait",
+      "description": "Initial Balance",
+      "amount": 27000,
+      "category": "Other",
+      "type": "income",
+      "date": "2026-05-26"
+    }
+  ],
+  "budgets": [
+    {
+      "userId": "u_chait",
+      "category": "Food",
+      "limit": 5000
+    },
+    {
+      "userId": "u_chait",
+      "category": "Rent",
+      "limit": 15000
+    },
+    {
+      "userId": "u_chait",
+      "category": "Entertainment",
+      "limit": 3000
+    },
+    {
+      "userId": "u_chait",
+      "category": "Utilities",
+      "limit": 2500
+    },
+    {
+      "userId": "u_1779793686956",
+      "category": "Food",
+      "limit": 5000
+    },
+    {
+      "userId": "u_1779793686956",
+      "category": "Rent",
+      "limit": 15000
+    },
+    {
+      "userId": "u_1779793686956",
+      "category": "Entertainment",
+      "limit": 2500
+    },
+    {
+      "userId": "u_1779793686956",
+      "category": "Utilities",
+      "limit": 2500
+    }
+  ],
   "savings": [],
   "futurePlans": []
 }

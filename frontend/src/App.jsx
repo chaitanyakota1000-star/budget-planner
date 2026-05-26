@@ -5,6 +5,7 @@ import { FuturePlans } from './components/FuturePlans';
 import { Auth } from './components/Auth';
 import { TransactionModal, BudgetModal, SavingsModal, OnboardingModal, PlanModal } from './components/Modals';
 import { apiClient } from './apiClient';
+import { DevConsole } from './components/DevConsole';
 
 const API_BASE = 'http://localhost:5000/api';
 
@@ -29,6 +30,7 @@ export default function App() {
   const [isSavingsModalOpen, setIsSavingsModalOpen] = useState(false);
   const [isPlanModalOpen, setIsPlanModalOpen] = useState(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   // Active items for editing
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -324,13 +326,15 @@ export default function App() {
     return <Auth onLoginSuccess={handleLoginSuccess} />;
   }
 
+  const isAdmin = authUsername && authUsername.toLowerCase() === 'admin';
+
   return (
     <div className="app-container">
-      {/* Sidebar Navigation */}
-      <aside className="sidebar">
-        <div className="logo-container" style={{ marginBottom: '2.5rem' }}>
+      {/* Top Navigation Bar */}
+      <header className="top-navbar">
+        <div className="logo-container" onClick={() => setActiveTab('dashboard')}>
           <div className="logo-icon">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18c3-1 5-9 10-9s4 4 7 4 3-4 3-8" /><path d="M2 13c3-1 5-9 10-9s4 4 7 4" style={{ opacity: 0.4 }} /><polyline points="17 5 22 5 22 10" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18c3-1 5-9 10-9s4 4 7 4 3-4 3-8" /><path d="M2 13c3-1 5-9 10-9s4 4 7 4" style={{ opacity: 0.4 }} /><polyline points="17 5 22 5 22 10" /></svg>
           </div>
           <span className="logo-text">FinFlow</span>
         </div>
@@ -340,86 +344,112 @@ export default function App() {
             <li>
               <button 
                 className={`nav-button ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dashboard')}
+                onClick={() => { setActiveTab('dashboard'); setIsDropdownOpen(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
                 Dashboard
               </button>
             </li>
             <li>
               <button 
                 className={`nav-button ${activeTab === 'transactions' ? 'active' : ''}`}
-                onClick={() => setActiveTab('transactions')}
+                onClick={() => { setActiveTab('transactions'); setIsDropdownOpen(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
                 Ledger
               </button>
             </li>
             <li>
               <button 
                 className={`nav-button ${activeTab === 'budgets' ? 'active' : ''}`}
-                onClick={() => setActiveTab('budgets')}
+                onClick={() => { setActiveTab('budgets'); setIsDropdownOpen(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                 Budgets
               </button>
             </li>
             <li>
               <button 
                 className={`nav-button ${activeTab === 'savings' ? 'active' : ''}`}
-                onClick={() => setActiveTab('savings')}
+                onClick={() => { setActiveTab('savings'); setIsDropdownOpen(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="8" r="7"></circle><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline></svg>
                 Savings
               </button>
             </li>
             <li>
               <button 
                 className={`nav-button ${activeTab === 'plans' ? 'active' : ''}`}
-                onClick={() => setActiveTab('plans')}
+                onClick={() => { setActiveTab('plans'); setIsDropdownOpen(false); }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="2" x2="12" y2="12"></line><polyline points="12 4 12 12 20 12"></polyline></svg>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="22" y1="2" x2="12" y2="12"></line><polyline points="12 4 12 12 20 12"></polyline></svg>
                 Planner
               </button>
             </li>
+            {isAdmin && (
+              <li>
+                <button 
+                  className={`nav-button ${activeTab === 'devconsole' ? 'active' : ''}`}
+                  onClick={() => { setActiveTab('devconsole'); setIsDropdownOpen(false); }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect><line x1="7" y1="2" x2="7" y2="22"></line><line x1="17" y1="2" x2="17" y2="22"></line><line x1="2" y1="12" x2="22" y2="12"></line></svg>
+                  Dev Console
+                </button>
+              </li>
+            )}
           </ul>
         </nav>
 
-        <div className="sidebar-footer">
-          <div className="user-badge" style={{ justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div className="user-avatar" style={{ textTransform: 'uppercase', width: '32px', height: '32px', fontSize: '0.8rem' }}>
-                {authUsername ? authUsername.substring(0, 2) : 'US'}
-              </div>
-              <div className="user-info">
-                <h4 style={{ textTransform: 'capitalize', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '80px' }}>{authUsername}</h4>
-                <p>Starter Plan</p>
-              </div>
+        <div className="navbar-right">
+          <div className="user-badge-trigger" onClick={() => setIsDropdownOpen(!isDropdownOpen)}>
+            <div className="user-avatar" style={{ textTransform: 'uppercase' }}>
+              {authUsername ? authUsername.substring(0, 2) : 'US'}
             </div>
-            
-            <div style={{ display: 'flex', gap: '0.2rem' }}>
-              {/* Onboarding edit trigger */}
-              <button 
-                className="btn-icon" 
-                title="Profile Allocations" 
-                onClick={() => setIsOnboardingOpen(true)}
-                style={{ padding: '0.3rem', color: 'var(--text-secondary)' }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-              </button>
-              {/* Logout button */}
-              <button 
-                className="btn-icon" 
-                title="Log Out" 
-                onClick={handleSignOut}
-                style={{ padding: '0.3rem', color: 'var(--color-expense)' }}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
-              </button>
-            </div>
+            <span className="user-display-name">{authUsername}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginLeft: '2px', transform: isDropdownOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}><polyline points="6 9 12 15 18 9"></polyline></svg>
           </div>
+
+          {isDropdownOpen && (
+            <div className="profile-dropdown-panel glass-panel">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '0.75rem', marginBottom: '0.5rem' }}>
+                <div className="user-avatar" style={{ textTransform: 'uppercase', width: '32px', height: '32px' }}>
+                  {authUsername ? authUsername.substring(0, 2) : 'US'}
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <h4 style={{ textTransform: 'capitalize', fontWeight: 'bold', fontSize: '0.85rem', color: '#fff' }}>{authUsername}</h4>
+                  <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', margin: 0 }}>
+                    {isAdmin ? 'Administrator' : 'Verified User'}
+                  </p>
+                </div>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <button 
+                  className="nav-button" 
+                  onClick={() => { setIsOnboardingOpen(true); setIsDropdownOpen(false); }}
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.8rem' }}
+                >
+                  ⚙️ Profile Allocations
+                </button>
+                <button 
+                  className="nav-button" 
+                  onClick={() => { handleResetProfile(); setIsDropdownOpen(false); }}
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--color-warning)' }}
+                >
+                  🔄 Reset Account Data
+                </button>
+                <button 
+                  className="nav-button" 
+                  onClick={() => { handleSignOut(); setIsDropdownOpen(false); }}
+                  style={{ width: '100%', padding: '0.5rem 0.75rem', fontSize: '0.8rem', color: 'var(--color-expense)' }}
+                >
+                  🚪 Log Out
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </aside>
+      </header>
 
       {/* Main View Area */}
       <main className="main-content">
@@ -664,6 +694,11 @@ export default function App() {
             onDeletePlan={handleDeletePlan}
             onUpdateBudgets={handleApplyCuts}
           />
+        )}
+
+        {/* Dev Console View */}
+        {activeTab === 'devconsole' && isAdmin && (
+          <DevConsole authUserId={authUserId} />
         )}
       </main>
 

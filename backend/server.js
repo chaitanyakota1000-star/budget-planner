@@ -3,6 +3,26 @@ const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+// Custom .env file parser helper
+const ENV_PATH = path.join(__dirname, '.env');
+if (fs.existsSync(ENV_PATH)) {
+  try {
+    const envContent = fs.readFileSync(ENV_PATH, 'utf8');
+    envContent.split('\n').forEach(line => {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) return;
+      const [key, ...valueParts] = trimmed.split('=');
+      if (key && valueParts.length > 0) {
+        process.env[key.trim()] = valueParts.join('=').trim();
+      }
+    });
+    console.log('Successfully loaded environmental variables from .env file');
+  } catch (err) {
+    console.error('Failed to parse .env file:', err);
+  }
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -59,6 +79,28 @@ const writeDB = (data) => {
 
 // In-memory mock mail server queue
 const mockEmails = [];
+
+// Initialize SMTP Transporter if variables are configured
+let transporter = null;
+if (process.env.SMTP_USER && (process.env.SMTP_PASS || process.env.SMTP_APP_PASSWORD)) {
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS || process.env.SMTP_APP_PASSWORD;
+  const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+  const smtpPort = parseInt(process.env.SMTP_PORT) || 587;
+  
+  transporter = nodemailer.createTransport({
+    host: smtpHost,
+    port: smtpPort,
+    secure: smtpPort === 465,
+    auth: {
+      user: smtpUser,
+      pass: smtpPass
+    }
+  });
+  console.log(`Email server configured: Sending via ${smtpHost} (${smtpUser})`);
+} else {
+  console.log('Email server NOT configured. Falling back to local Mock Mail Server.');
+}
 
 // -------------------------------------------------------------
 // AUTHENTICATION ENDPOINTS
@@ -129,9 +171,27 @@ app.post('/api/auth/register', (req, res) => {
     id: `mail_${Date.now()}`,
     to: newUser.email,
     subject: 'Verify your FinFlow Account',
-    body: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! To complete your signup and start tracking your budgets, please use the following 6-digit verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+    body: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! To complete your signup and start tracking your budgets, please use the following 6-digit verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email.`,
     date: new Date().toISOString()
   });
+
+  // Send real email if transporter is configured
+  if (transporter) {
+    const mailOptions = {
+      from: `"FinFlow" <${process.env.SMTP_USER}>`,
+      to: newUser.email,
+      subject: 'Verify your FinFlow Account - OTP Code',
+      text: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! To complete your signup and start tracking your budgets, please use the following 6-digit verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nIf you did not request this code, you can safely ignore this email.\n\nBest regards,\nThe FinFlow Team`
+    };
+
+    transporter.sendMail(mailOptions, (error, info) => {
+      if (error) {
+        console.error('Failed to send verification email via SMTP:', error);
+      } else {
+        console.log(`Verification email successfully sent to ${newUser.email}: ${info.messageId}`);
+      }
+    });
+  }
 
   writeDB(db);
   res.status(201).json({ needsVerification: true, userId: newUserId, username: newUser.username });
