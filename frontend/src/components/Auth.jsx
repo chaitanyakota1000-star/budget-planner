@@ -25,26 +25,66 @@ export function Auth({ onLoginSuccess }) {
     setLoading(true);
 
     if (isSupabaseConfigured) {
-      if (!email.trim()) {
-        setError('Please enter your email address');
+      if (!email.trim() || !password) {
+        setError('Please fill in all fields');
+        setLoading(false);
+        return;
+      }
+      if (!isLogin && !username.trim()) {
+        setError('Please enter a username');
         setLoading(false);
         return;
       }
 
       try {
-        const { error } = await supabase.auth.signInWithOtp({
-          email: email.trim()
-        });
+        if (isLogin) {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password
+          });
 
-        if (error) {
-          setError(error.message);
+          if (error) {
+            setError(error.message);
+          } else {
+            setSuccess('Login successful!');
+            const user = data.user;
+            const userDisplay = user.user_metadata?.username || user.email.split('@')[0];
+            setTimeout(() => {
+              onLoginSuccess(user.id, userDisplay);
+            }, 1000);
+          }
         } else {
-          setNeedsVerify(true);
-          setSuccess('OTP verification code sent to your email!');
+          // Sign Up
+          const { data, error } = await supabase.auth.signUp({
+            email: email.trim(),
+            password,
+            options: {
+              data: {
+                username: username.trim()
+              }
+            }
+          });
+
+          if (error) {
+            setError(error.message);
+          } else {
+            const user = data.user;
+            const session = data.session;
+            if (!session) {
+              setSuccess('Account created! Please check your email inbox to verify your account before logging in.');
+              setIsLogin(true);
+            } else {
+              setSuccess('Account created and logged in!');
+              const userDisplay = user.user_metadata?.username || user.email.split('@')[0];
+              setTimeout(() => {
+                onLoginSuccess(user.id, userDisplay);
+              }, 1000);
+            }
+          }
         }
       } catch (err) {
         console.error(err);
-        setError('Failed to request OTP from Supabase.');
+        setError('Failed to authenticate with Supabase.');
       } finally {
         setLoading(false);
       }
@@ -393,9 +433,7 @@ export function Auth({ onLoginSuccess }) {
           </div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, background: 'linear-gradient(135deg, #fff, #a5b4fc)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>FinFlow</h2>
           <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-            {isSupabaseConfigured 
-              ? 'Enter your email to receive a login OTP'
-              : (isLogin ? 'Log in to manage your budgets' : 'Create an account to start saving')}
+            {isLogin ? 'Log in to manage your budgets' : 'Create an account to start saving'}
           </p>
         </div>
 
@@ -412,7 +450,23 @@ export function Auth({ onLoginSuccess }) {
         )}
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {isSupabaseConfigured ? (
+          {(!isSupabaseConfigured || !isLogin) && (
+            <div className="form-group" style={{ margin: 0 }}>
+              <label className="form-label" htmlFor="auth-username">Username</label>
+              <input 
+                type="text" 
+                id="auth-username" 
+                className="form-control" 
+                placeholder="Enter username" 
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                disabled={loading}
+                required 
+              />
+            </div>
+          )}
+
+          {(isSupabaseConfigured || !isLogin) && (
             <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label" htmlFor="auth-email">Email Address</label>
               <input 
@@ -426,53 +480,21 @@ export function Auth({ onLoginSuccess }) {
                 required 
               />
             </div>
-          ) : (
-            <>
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="auth-username">Username</label>
-                <input 
-                  type="text" 
-                  id="auth-username" 
-                  className="form-control" 
-                  placeholder="Enter username" 
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  disabled={loading}
-                  required 
-                />
-              </div>
-
-              {!isLogin && (
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" htmlFor="auth-email">Email Address</label>
-                  <input 
-                    type="email" 
-                    id="auth-email" 
-                    className="form-control" 
-                    placeholder="chait@example.com" 
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    disabled={loading}
-                    required 
-                  />
-                </div>
-              )}
-
-              <div className="form-group" style={{ margin: 0 }}>
-                <label className="form-label" htmlFor="auth-password">Password</label>
-                <input 
-                  type="password" 
-                  id="auth-password" 
-                  className="form-control" 
-                  placeholder="••••••••" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  disabled={loading}
-                  required 
-                />
-              </div>
-            </>
           )}
+
+          <div className="form-group" style={{ margin: 0 }}>
+            <label className="form-label" htmlFor="auth-password">Password</label>
+            <input 
+              type="password" 
+              id="auth-password" 
+              className="form-control" 
+              placeholder="••••••••" 
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              required 
+            />
+          </div>
 
           <button 
             type="submit" 
@@ -480,23 +502,21 @@ export function Auth({ onLoginSuccess }) {
             style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem' }}
             disabled={loading}
           >
-            {loading ? 'Please wait...' : (isSupabaseConfigured ? 'Send OTP' : (isLogin ? 'Log In' : 'Sign Up'))}
+            {loading ? 'Please wait...' : (isLogin ? 'Log In' : 'Sign Up')}
           </button>
         </form>
 
-        {!isSupabaseConfigured && (
-          <div style={{ marginTop: '2.0rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-            {isLogin ? "Don't have an account? " : "Already have an account? "}
-            <button 
-              type="button" 
-              style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
-              onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
-              disabled={loading}
-            >
-              {isLogin ? 'Sign Up' : 'Log In'}
-            </button>
-          </div>
-        )}
+        <div style={{ marginTop: '2.0rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+          {isLogin ? "Don't have an account? " : "Already have an account? "}
+          <button 
+            type="button" 
+            style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', fontWeight: '600', cursor: 'pointer', outline: 'none' }}
+            onClick={() => { setIsLogin(!isLogin); setError(''); setSuccess(''); }}
+            disabled={loading}
+          >
+            {isLogin ? 'Sign Up' : 'Log In'}
+          </button>
+        </div>
       </div>
     </div>
   );
