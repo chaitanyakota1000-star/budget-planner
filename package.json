@@ -1,4 +1,5 @@
 {
+  "name": "finflow-budget-planner",
   "dependencies": {
     "create-vite": "^5.5.5"
   }
