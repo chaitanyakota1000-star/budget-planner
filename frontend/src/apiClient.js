@@ -299,15 +299,14 @@ class ApiClient {
       }
 
       const newUserId = `u_${Date.now()}`;
-      const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
 
       const newUser = {
         id: newUserId,
         username: username.trim(),
         email: normalizedEmail,
         passwordHash: sha256(password),
-        isVerified: false,
-        verificationCode: verificationOtp,
+        isVerified: true,
+        verificationCode: '',
         admin: false
       };
 
@@ -332,17 +331,13 @@ class ApiClient {
         });
       });
 
-      // "Send" verification email
-      db.mockEmails.unshift({
-        id: `mail_${Date.now()}`,
-        to: newUser.email,
-        subject: 'Verify your FinFlow Account',
-        body: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! To complete your signup and start tracking your budgets, please use the following 6-digit verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for browser demo mode.`,
-        date: new Date().toISOString()
-      });
-
       writeLocalDB(db);
-      return makeResponse({ needsVerification: true, userId: newUserId, username: newUser.username }, 201);
+      return makeResponse({
+        id: newUser.id,
+        username: newUser.username,
+        email: newUser.email,
+        admin: false
+      }, 201);
     }
 
     // 3. VERIFY ENDPOINT

@@ -133,15 +133,14 @@ app.post('/api/auth/register', (req, res) => {
   }
 
   const newUserId = `u_${Date.now()}`;
-  const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
   
   const newUser = {
     id: newUserId,
     username: username.trim(),
     email: normalizedEmail,
     passwordHash: hashPassword(password),
-    isVerified: false,
-    verificationCode: verificationOtp,
+    isVerified: true,
+    verificationCode: '',
     admin: false
   };
 
@@ -166,35 +165,31 @@ app.post('/api/auth/register', (req, res) => {
     });
   });
 
-  // "Send" email by logging to mock mail server queue
-  mockEmails.unshift({
-    id: `mail_${Date.now()}`,
-    to: newUser.email,
-    subject: 'Verify your FinFlow Account',
-    body: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! To complete your signup and start tracking your budgets, please use the following 6-digit verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email.`,
-    date: new Date().toISOString()
-  });
-
-  // Send real email if transporter is configured
+  // Send real welcome email if transporter is configured
   if (transporter) {
     const mailOptions = {
       from: `"FinFlow" <${process.env.SMTP_USER}>`,
       to: newUser.email,
-      subject: 'Verify your FinFlow Account - OTP Code',
-      text: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! To complete your signup and start tracking your budgets, please use the following 6-digit verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nIf you did not request this code, you can safely ignore this email.\n\nBest regards,\nThe FinFlow Team`
+      subject: 'Welcome to FinFlow!',
+      text: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! Your account has been successfully created.\n\nYou can now log in and start tracking your budgets and savings goals.\n\nBest regards,\nThe FinFlow Team`
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
       if (error) {
-        console.error('Failed to send verification email via SMTP:', error);
+        console.error('Failed to send welcome email via SMTP:', error);
       } else {
-        console.log(`Verification email successfully sent to ${newUser.email}: ${info.messageId}`);
+        console.log(`Welcome email successfully sent to ${newUser.email}: ${info.messageId}`);
       }
     });
   }
 
   writeDB(db);
-  res.status(201).json({ needsVerification: true, userId: newUserId, username: newUser.username });
+  res.status(201).json({
+    id: newUser.id,
+    username: newUser.username,
+    email: newUser.email,
+    admin: false
+  });
 });
 
 // Verify OTP
