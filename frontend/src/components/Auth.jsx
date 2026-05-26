@@ -132,18 +132,33 @@ export function Auth({ onLoginSuccess }) {
         <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(99, 102, 241, 0.2)', position: 'relative' }}>
           
           {/* Connection status badge */}
-          <div style={{
-            position: 'absolute',
-            top: '12px',
-            right: '12px',
-            background: apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)',
-            color: apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d',
-            border: apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)',
-            fontSize: '0.7rem',
-            padding: '2px 8px',
-            borderRadius: '20px',
-            fontWeight: 600
-          }}>
+          <div 
+            onClick={() => {
+              const newMode = apiClient.getMode() === 'backend' ? 'offline' : 'backend';
+              apiClient.setMode(newMode);
+              window.location.reload();
+            }}
+            title="Click to toggle connection mode (Backend vs Demo Mode)"
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              background: apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)',
+              color: apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d',
+              border: apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)',
+              fontSize: '0.7rem',
+              padding: '4px 10px',
+              borderRadius: '20px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              userSelect: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'background 0.2s'
+            }}
+          >
+            <span style={{ fontSize: '0.55rem' }}>{apiClient.getMode() === 'backend' ? '🟢' : '⚡'}</span>
             {apiClient.getMode() === 'backend' ? 'CONNECTED' : 'OFFLINE MODE'}
           </div>
 
@@ -224,18 +239,33 @@ export function Auth({ onLoginSuccess }) {
       <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', borderRadius: 'var(--radius-lg)', border: '1px solid rgba(99, 102, 241, 0.2)', position: 'relative' }}>
         
         {/* Connection status badge */}
-        <div style={{
-          position: 'absolute',
-          top: '12px',
-          right: '12px',
-          background: apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)',
-          color: apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d',
-          border: apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)',
-          fontSize: '0.7rem',
-          padding: '2px 8px',
-          borderRadius: '20px',
-          fontWeight: 600
-        }}>
+        <div 
+          onClick={() => {
+            const newMode = apiClient.getMode() === 'backend' ? 'offline' : 'backend';
+            apiClient.setMode(newMode);
+            window.location.reload();
+          }}
+          title="Click to toggle connection mode (Backend vs Demo Mode)"
+          style={{
+            position: 'absolute',
+            top: '12px',
+            right: '12px',
+            background: apiClient.getMode() === 'backend' ? 'rgba(76, 175, 80, 0.12)' : 'rgba(255, 152, 0, 0.12)',
+            color: apiClient.getMode() === 'backend' ? '#81c784' : '#ffb74d',
+            border: apiClient.getMode() === 'backend' ? '1px solid rgba(76, 175, 80, 0.2)' : '1px solid rgba(255, 152, 0, 0.2)',
+            fontSize: '0.7rem',
+            padding: '4px 10px',
+            borderRadius: '20px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            userSelect: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            transition: 'background 0.2s'
+          }}
+        >
+          <span style={{ fontSize: '0.55rem' }}>{apiClient.getMode() === 'backend' ? '🟢' : '⚡'}</span>
           {apiClient.getMode() === 'backend' ? 'CONNECTED' : 'OFFLINE MODE'}
         </div>
 
