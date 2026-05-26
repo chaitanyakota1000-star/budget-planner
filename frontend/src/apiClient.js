@@ -104,6 +104,14 @@ const initialDb = {
       email: "admin@finflow.com",
       isVerified: true,
       admin: true
+    },
+    {
+      id: "u_chaitanya",
+      username: "chaitanya",
+      passwordHash: "b285e393a516e7c0cdf900b1f1a79c270d4733cfc6d93285ff41f2a80445fef4", // Chaitanya@1234
+      email: "chaitanyakota1000@gmail.com",
+      isVerified: true,
+      admin: false
     }
   ],
   profiles: {
@@ -120,6 +128,13 @@ const initialDb = {
       monthlyIncome: 100000,
       monthlyExpenses: 0,
       targetSavings: 20000
+    },
+    "u_chaitanya": {
+      initialized: false,
+      currentBalance: 0,
+      monthlyIncome: 0,
+      monthlyExpenses: 0,
+      targetSavings: 0
     }
   },
   transactions: [],
@@ -145,6 +160,24 @@ const getLocalDB = () => {
   if (!parsed.savings) parsed.savings = [];
   if (!parsed.futurePlans) parsed.futurePlans = [];
   if (!parsed.mockEmails) parsed.mockEmails = [];
+
+  // Merge missing seeded users dynamically so local cached DBs get updated
+  let modified = false;
+  initialDb.users.forEach(seedUser => {
+    const exists = parsed.users.some(u => u.username === seedUser.username || (u.email && u.email === seedUser.email));
+    if (!exists) {
+      parsed.users.push(seedUser);
+      if (initialDb.profiles[seedUser.id]) {
+        parsed.profiles[seedUser.id] = initialDb.profiles[seedUser.id];
+      }
+      modified = true;
+    }
+  });
+
+  if (modified) {
+    localStorage.setItem('finflow_db', JSON.stringify(parsed));
+  }
+
   return parsed;
 };
 
@@ -299,14 +332,15 @@ class ApiClient {
       }
 
       const newUserId = `u_${Date.now()}`;
+      const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
 
       const newUser = {
         id: newUserId,
         username: username.trim(),
         email: normalizedEmail,
         passwordHash: sha256(password),
-        isVerified: true,
-        verificationCode: '',
+        isVerified: false,
+        verificationCode: verificationOtp,
         admin: false
       };
 
@@ -331,11 +365,21 @@ class ApiClient {
         });
       });
 
+      // Send simulated verification email
+      db.mockEmails.unshift({
+        id: `mail_${Date.now()}`,
+        to: newUser.email,
+        subject: 'Verify your FinFlow Account - OTP Code (Simulated)',
+        body: `Hi ${newUser.username},\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+        date: new Date().toISOString()
+      });
+
       writeLocalDB(db);
       return makeResponse({
         id: newUser.id,
         username: newUser.username,
         email: newUser.email,
+        needsVerification: true,
         admin: false
       }, 201);
     }
@@ -350,11 +394,44 @@ class ApiClient {
 
       if (db.users[userIndex].verificationCode === code) {
         db.users[userIndex].isVerified = true;
+        db.users[userIndex].verificationCode = null;
         writeLocalDB(db);
-        return makeResponse({ message: 'Email verified successfully! You can now log in.' });
+        return makeResponse({
+          id: db.users[userIndex].id,
+          username: db.users[userIndex].username,
+          email: db.users[userIndex].email,
+          admin: !!db.users[userIndex].admin
+        });
       } else {
-        return makeResponse({ error: 'Invalid verification code' }, 400);
+        return makeResponse({ error: 'Invalid verification OTP code. Please try again.' }, 400);
       }
+    }
+
+    // 3.5. RESEND OTP ENDPOINT MOCK
+    if (pathname === '/api/auth/resend' && method === 'POST') {
+      const { userId: regUserId } = body;
+      const userIndex = db.users.findIndex(u => u.id === regUserId);
+      if (userIndex === -1) {
+        return makeResponse({ error: 'User not found' }, 404);
+      }
+
+      if (db.users[userIndex].isVerified) {
+        return makeResponse({ error: 'Account is already verified' }, 400);
+      }
+
+      const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+      db.users[userIndex].verificationCode = verificationOtp;
+
+      db.mockEmails.unshift({
+        id: `mail_${Date.now()}`,
+        to: db.users[userIndex].email,
+        subject: 'Verify your FinFlow Account - OTP Code (Simulated Resend)',
+        body: `Hi ${db.users[userIndex].username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+        date: new Date().toISOString()
+      });
+
+      writeLocalDB(db);
+      return makeResponse({ success: true, message: 'Verification OTP has been resent.' });
     }
 
     // 4. LOGIN ENDPOINT
@@ -364,8 +441,11 @@ class ApiClient {
         return makeResponse({ error: 'Username and password are required' }, 400);
       }
 
-      const normalizedUsername = username.trim().toLowerCase();
-      const user = db.users.find(u => u.username.toLowerCase() === normalizedUsername);
+      const identifier = username.trim().toLowerCase();
+      const user = db.users.find(u => 
+        u.username.toLowerCase() === identifier || 
+        (u.email && u.email.toLowerCase() === identifier)
+      );
 
       if (!user) {
         return makeResponse({ error: 'Invalid username or password' }, 401);
@@ -376,7 +456,19 @@ class ApiClient {
       }
 
       if (!user.isVerified) {
-        return makeResponse({ error: 'Please verify your email before logging in', needsVerification: true, userId: user.id }, 403);
+        const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+        user.verificationCode = verificationOtp;
+
+        db.mockEmails.unshift({
+          id: `mail_${Date.now()}`,
+          to: user.email,
+          subject: 'Verify your FinFlow Account (Re-sent)',
+          body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+          date: new Date().toISOString()
+        });
+
+        writeLocalDB(db);
+        return makeResponse({ error: 'Account email is not verified.', needsVerification: true, userId: user.id }, 403);
       }
 
       return makeResponse({
