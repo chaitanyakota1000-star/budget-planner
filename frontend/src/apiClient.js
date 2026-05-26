@@ -344,6 +344,7 @@ class ApiClient {
 
       const newUserId = `u_${Date.now()}`;
       const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+      const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
 
       const newUser = {
         id: newUserId,
@@ -352,6 +353,7 @@ class ApiClient {
         passwordHash: sha256(password),
         isVerified: false,
         verificationCode: verificationOtp,
+        otpExpiry,
         admin: false
       };
 
@@ -381,7 +383,7 @@ class ApiClient {
         id: `mail_${Date.now()}`,
         to: newUser.email,
         subject: 'Verify your FinFlow Account - OTP Code (Simulated)',
-        body: `Hi ${newUser.username},\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+        body: `Hi ${newUser.username},\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
         date: new Date().toISOString()
       });
 
@@ -403,9 +405,17 @@ class ApiClient {
         return makeResponse({ error: 'User not found' }, 404);
       }
 
-      if (db.users[userIndex].verificationCode === code) {
+      const user = db.users[userIndex];
+
+      // Expiry validation
+      if (user.otpExpiry && Date.now() > user.otpExpiry) {
+        return makeResponse({ error: 'Verification OTP code has expired. Please request a new one.' }, 400);
+      }
+
+      if (user.verificationCode === code) {
         db.users[userIndex].isVerified = true;
         db.users[userIndex].verificationCode = null;
+        db.users[userIndex].otpExpiry = null;
         writeLocalDB(db);
         return makeResponse({
           id: db.users[userIndex].id,
@@ -431,13 +441,15 @@ class ApiClient {
       }
 
       const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+      const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
       db.users[userIndex].verificationCode = verificationOtp;
+      db.users[userIndex].otpExpiry = otpExpiry;
 
       db.mockEmails.unshift({
         id: `mail_${Date.now()}`,
         to: db.users[userIndex].email,
         subject: 'Verify your FinFlow Account - OTP Code (Simulated Resend)',
-        body: `Hi ${db.users[userIndex].username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+        body: `Hi ${db.users[userIndex].username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
         date: new Date().toISOString()
       });
 
@@ -468,13 +480,15 @@ class ApiClient {
 
       if (!user.isVerified) {
         const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+        const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
         user.verificationCode = verificationOtp;
+        user.otpExpiry = otpExpiry;
 
         db.mockEmails.unshift({
           id: `mail_${Date.now()}`,
           to: user.email,
           subject: 'Verify your FinFlow Account (Re-sent)',
-          body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+          body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
           date: new Date().toISOString()
         });
 

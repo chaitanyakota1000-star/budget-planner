@@ -134,6 +134,7 @@ app.post('/api/auth/register', (req, res) => {
   }
 
   const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+  const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes in milliseconds
   const newUserId = `u_${Date.now()}`;
   
   const newUser = {
@@ -143,6 +144,7 @@ app.post('/api/auth/register', (req, res) => {
     passwordHash: hashPassword(password),
     isVerified: false,
     verificationCode: verificationOtp,
+    otpExpiry: otpExpiry,
     admin: false
   };
 
@@ -173,7 +175,7 @@ app.post('/api/auth/register', (req, res) => {
       from: `"FinFlow" <${process.env.SMTP_USER}>`,
       to: newUser.email,
       subject: 'Verify your FinFlow Account - OTP Code',
-      text: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! Your account has been created.\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nPlease enter this code in the app to verify your account.\n\nBest regards,\nThe FinFlow Team`
+      text: `Hi ${newUser.username},\n\nThank you for choosing FinFlow! Your account has been created.\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code is valid for 5 minutes. Please enter it in the app to verify your account.\n\nBest regards,\nThe FinFlow Team`
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -190,7 +192,7 @@ app.post('/api/auth/register', (req, res) => {
     id: `mail_${Date.now()}`,
     to: newUser.email,
     subject: 'Verify your FinFlow Account - OTP Code (Simulated)',
-    body: `Hi ${newUser.username},\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+    body: `Hi ${newUser.username},\n\nHere is your 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
     date: new Date().toISOString()
   });
 
@@ -218,12 +220,19 @@ app.post('/api/auth/verify', (req, res) => {
   }
 
   const user = db.users[userIndex];
+  
+  // Verify expiration
+  if (user.otpExpiry && Date.now() > user.otpExpiry) {
+    return res.status(400).json({ error: 'Verification OTP code has expired. Please request a new one.' });
+  }
+
   if (user.verificationCode !== code.trim()) {
     return res.status(400).json({ error: 'Invalid verification OTP code. Please try again.' });
   }
 
   user.isVerified = true;
   user.verificationCode = null;
+  user.otpExpiry = null;
   writeDB(db);
 
   res.json({ userId: user.id, username: user.username, email: user.email, admin: !!user.admin });
@@ -247,7 +256,9 @@ app.post('/api/auth/resend', (req, res) => {
   }
 
   const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+  const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
   user.verificationCode = verificationOtp;
+  user.otpExpiry = otpExpiry;
   writeDB(db);
 
   if (transporter) {
@@ -255,7 +266,7 @@ app.post('/api/auth/resend', (req, res) => {
       from: `"FinFlow" <${process.env.SMTP_USER}>`,
       to: user.email,
       subject: 'Verify your FinFlow Account - OTP Code',
-      text: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nPlease enter this code to verify your account.\n\nBest regards,\nThe FinFlow Team`
+      text: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code is valid for 5 minutes. Please enter it to verify your account.\n\nBest regards,\nThe FinFlow Team`
     };
 
     transporter.sendMail(mailOptions, (error, info) => {
@@ -271,7 +282,7 @@ app.post('/api/auth/resend', (req, res) => {
     id: `mail_${Date.now()}`,
     to: user.email,
     subject: 'Verify your FinFlow Account - OTP Code (Simulated Resend)',
-    body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+    body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
     date: new Date().toISOString()
   });
 
@@ -299,14 +310,16 @@ app.post('/api/auth/login', (req, res) => {
   if (user.isVerified === false) {
     // If not verified, trigger OTP re-dispatch and redirect
     const verificationOtp = String(Math.floor(100000 + Math.random() * 900000));
+    const otpExpiry = Date.now() + 5 * 60 * 1000; // 5 minutes
     user.verificationCode = verificationOtp;
+    user.otpExpiry = otpExpiry;
     
     if (transporter) {
       const mailOptions = {
         from: `"FinFlow" <${process.env.SMTP_USER}>`,
         to: user.email,
         subject: 'Verify your FinFlow Account - OTP Code',
-        text: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nPlease enter this code to verify your account.\n\nBest regards,\nThe FinFlow Team`
+        text: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code is valid for 5 minutes. Please enter it to verify your account.\n\nBest regards,\nThe FinFlow Team`
       };
 
       transporter.sendMail(mailOptions, (error, info) => {
@@ -322,7 +335,7 @@ app.post('/api/auth/login', (req, res) => {
       id: `mail_${Date.now()}`,
       to: user.email,
       subject: 'Verify your FinFlow Account (Re-sent)',
-      body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis is a simulated verification email for local development.`,
+      body: `Hi ${user.username},\n\nHere is your new 6-digit OTP verification code:\n\n👉 OTP Code: ${verificationOtp}\n\nThis code will expire in 5 minutes.\n\nThis is a simulated verification email for local development.`,
       date: new Date().toISOString()
     });
     
