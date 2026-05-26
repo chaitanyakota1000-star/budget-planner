@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { apiClient } from '../apiClient';
 
 const API_BASE = 'http://localhost:5000/api';
@@ -16,6 +16,31 @@ export function Auth({ onLoginSuccess }) {
   const [needsVerify, setNeedsVerify] = useState(false);
   const [verifyUserId, setVerifyUserId] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [mockMail, setMockMail] = useState(null); // Simulated developer mail container
+
+  const fetchMockOtp = async () => {
+    try {
+      const response = await apiClient.get(`http://localhost:5000/api/auth/mock-emails`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.length > 0) {
+          // Find the email sent to the current user email, or just take the latest email
+          const latestMail = data[0]; // mockEmails are unshifted, so index 0 is latest
+          setMockMail(latestMail);
+        }
+      }
+    } catch (e) {
+      console.warn('Could not fetch mock emails:', e);
+    }
+  };
+
+  useEffect(() => {
+    if (needsVerify) {
+      fetchMockOtp();
+      const interval = setInterval(fetchMockOtp, 3000); // poll every 3s
+      return () => clearInterval(interval);
+    }
+  }, [needsVerify]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -210,6 +235,40 @@ export function Auth({ onLoginSuccess }) {
               {loading ? 'Verifying...' : 'Verify & Log In'}
             </button>
           </form>
+
+          {mockMail && (
+            <div style={{
+              marginTop: '1.5rem',
+              padding: '1rem',
+              background: 'rgba(99, 102, 241, 0.08)',
+              border: '1px dashed rgba(99, 102, 241, 0.25)',
+              borderRadius: '12px',
+              fontSize: '0.8rem',
+              textAlign: 'left'
+            }}>
+              <div style={{ fontWeight: '600', color: 'var(--color-secondary)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Developer Mock Mail Box</span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Auto-refreshing</span>
+              </div>
+              <div style={{ color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                <strong>Subject</strong>: {mockMail.subject}<br />
+                <strong>To</strong>: {mockMail.to}<br />
+                <div style={{ 
+                  marginTop: '0.5rem', 
+                  background: 'rgba(0,0,0,0.2)', 
+                  padding: '0.5rem', 
+                  borderRadius: '6px', 
+                  fontFamily: 'monospace',
+                  whiteSpace: 'pre-wrap',
+                  color: '#fff',
+                  fontSize: '0.75rem',
+                  border: '1px solid rgba(255,255,255,0.03)'
+                }}>
+                  {mockMail.body}
+                </div>
+              </div>
+            </div>
+          )}
 
           <div style={{ marginTop: '2.0rem', display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem' }}>
             <button 
