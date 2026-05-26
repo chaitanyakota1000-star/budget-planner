@@ -1,0 +1,40 @@
+{
+  "users": [
+    {
+      "id": "u_chait",
+      "username": "chait",
+      "passwordHash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "email": "chait@example.com",
+      "isVerified": true,
+      "admin": false
+    },
+    {
+      "id": "u_admin",
+      "username": "admin",
+      "passwordHash": "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9",
+      "email": "admin@finflow.com",
+      "isVerified": true,
+      "admin": true
+    }
+  ],
+  "profiles": {
+    "u_chait": {
+      "initialized": false,
+      "currentBalance": 0,
+      "monthlyIncome": 0,
+      "monthlyExpenses": 0,
+      "targetSavings": 0
+    },
+    "u_admin": {
+      "initialized": true,
+      "currentBalance": 100000,
+      "monthlyIncome": 100000,
+      "monthlyExpenses": 0,
+      "targetSavings": 20000
+    }
+  },
+  "transactions": [],
+  "budgets": [],
+  "savings": [],
+  "futurePlans": []
+}
