@@ -26,7 +26,7 @@ export function Auth({ onLoginSuccess }) {
 
     const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
     try {
-      const response = await apiClient.post(`${API_BASE}${endpoint}`, isLogin ? {
+      const response = await apiClient.post(`http://localhost:5000${endpoint}`, isLogin ? {
         username: username.trim(),
         password
       } : {
