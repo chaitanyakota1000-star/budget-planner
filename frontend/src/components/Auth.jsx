@@ -46,7 +46,7 @@ export function Auth({ onLoginSuccess }) {
           if (error) {
             const errMsg = error.message.toLowerCase();
             if (errMsg.includes('confirm') || errMsg.includes('verified') || (error.status === 400 && errMsg.includes('email'))) {
-              // Try to resend verification OTP
+              // Try to resend verification OTP link
               await supabase.auth.resend({
                 type: 'signup',
                 email: email.trim(),
@@ -54,8 +54,7 @@ export function Auth({ onLoginSuccess }) {
                   emailRedirectTo: window.location.origin + window.location.pathname
                 }
               });
-              setNeedsVerify(true);
-              setSuccess('Your email is not verified yet. A 6-digit OTP code has been sent to your email.');
+              setSuccess('Your email is not verified yet. A verification link has been sent to your email.');
             } else {
               setError(error.message);
             }
@@ -85,8 +84,9 @@ export function Auth({ onLoginSuccess }) {
           } else {
             const session = data.session;
             if (!session) {
-              setNeedsVerify(true);
-              setSuccess('Account created! A 6-digit OTP verification code has been sent to your email.');
+              setSuccess('Account created! A confirmation link has been sent to your email. Please check your inbox and verify your account.');
+              setIsLogin(true);
+              setPassword('');
             } else {
               setSuccess('Account created and logged in!');
               const user = data.user;
