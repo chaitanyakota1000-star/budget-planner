@@ -49,7 +49,10 @@ export function Auth({ onLoginSuccess }) {
               // Try to resend verification OTP
               await supabase.auth.resend({
                 type: 'signup',
-                email: email.trim()
+                email: email.trim(),
+                options: {
+                  emailRedirectTo: window.location.origin + window.location.pathname
+                }
               });
               setNeedsVerify(true);
               setSuccess('Your email is not verified yet. A 6-digit OTP code has been sent to your email.');
@@ -70,6 +73,7 @@ export function Auth({ onLoginSuccess }) {
             email: email.trim(),
             password,
             options: {
+              emailRedirectTo: window.location.origin + window.location.pathname,
               data: {
                 username: username.trim()
               }
@@ -237,7 +241,10 @@ export function Auth({ onLoginSuccess }) {
       try {
         const { error } = await supabase.auth.resend({
           type: 'signup',
-          email: email.trim()
+          email: email.trim(),
+          options: {
+            emailRedirectTo: window.location.origin + window.location.pathname
+          }
         });
 
         if (error) {
