@@ -44,7 +44,18 @@ export function Auth({ onLoginSuccess }) {
           });
 
           if (error) {
-            setError(error.message);
+            const errMsg = error.message.toLowerCase();
+            if (errMsg.includes('confirm') || errMsg.includes('verified') || (error.status === 400 && errMsg.includes('email'))) {
+              // Try to resend verification OTP
+              await supabase.auth.resend({
+                type: 'signup',
+                email: email.trim()
+              });
+              setNeedsVerify(true);
+              setSuccess('Your email is not verified yet. A 6-digit OTP code has been sent to your email.');
+            } else {
+              setError(error.message);
+            }
           } else {
             setSuccess('Login successful!');
             const user = data.user;
@@ -68,13 +79,13 @@ export function Auth({ onLoginSuccess }) {
           if (error) {
             setError(error.message);
           } else {
-            const user = data.user;
             const session = data.session;
             if (!session) {
-              setSuccess('Account created! Please check your email inbox to verify your account before logging in.');
-              setIsLogin(true);
+              setNeedsVerify(true);
+              setSuccess('Account created! A 6-digit OTP verification code has been sent to your email.');
             } else {
               setSuccess('Account created and logged in!');
+              const user = data.user;
               const userDisplay = user.user_metadata?.username || user.email.split('@')[0];
               setTimeout(() => {
                 onLoginSuccess(user.id, userDisplay);
@@ -166,16 +177,17 @@ export function Auth({ onLoginSuccess }) {
         const { data, error } = await supabase.auth.verifyOtp({
           email: email.trim(),
           token: otpCode.trim(),
-          type: 'email'
+          type: 'signup'
         });
 
         if (error) {
           setError(error.message || 'Invalid OTP code.');
         } else {
-          setSuccess('Login successful!');
+          setSuccess('Email verified successfully! Logging you in...');
           const user = data.user;
+          const userDisplay = user.user_metadata?.username || user.email.split('@')[0];
           setTimeout(() => {
-            onLoginSuccess(user.id, user.email.split('@')[0]);
+            onLoginSuccess(user.id, userDisplay);
           }, 1000);
         }
       } catch (err) {
@@ -223,14 +235,15 @@ export function Auth({ onLoginSuccess }) {
 
     if (isSupabaseConfigured) {
       try {
-        const { error } = await supabase.auth.signInWithOtp({
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
           email: email.trim()
         });
 
         if (error) {
           setError(error.message);
         } else {
-          setSuccess('A new OTP verification code has been sent.');
+          setSuccess('A new OTP verification code has been sent to your email.');
         }
       } catch (err) {
         console.error(err);
