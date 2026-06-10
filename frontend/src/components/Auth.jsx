@@ -99,7 +99,7 @@ export function Auth({ onLoginSuccess }) {
         }
       } catch (err) {
         console.error(err);
-        setError('Failed to authenticate with Supabase.');
+        setError(err.message || 'Failed to authenticate with Supabase.');
       } finally {
         setLoading(false);
       }
@@ -196,7 +196,7 @@ export function Auth({ onLoginSuccess }) {
         }
       } catch (err) {
         console.error(err);
-        setError('Failed to verify OTP with Supabase.');
+        setError(err.message || 'Failed to verify OTP with Supabase.');
       } finally {
         setLoading(false);
       }
@@ -254,7 +254,7 @@ export function Auth({ onLoginSuccess }) {
         }
       } catch (err) {
         console.error(err);
-        setError('Failed to resend OTP from Supabase.');
+        setError(err.message || 'Failed to resend OTP from Supabase.');
       } finally {
         setLoading(false);
       }
